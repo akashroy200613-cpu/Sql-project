@@ -1,0 +1,335 @@
+SELECT * FROM playstore;
+
+/*=====================================
+Project - Google playstore analysis
+Name - Akash roy 
+Objective:
+analysing performence and why they 
+perform good.
+=====================================*/
+
+-- 1. Data cleaning
+
+	-- Removing duplicates --
+    
+-- OVERVIEW THE DUPLICATES BY GROUP
+    
+    SELECT APP, COUNT(*) AS APP_COUNT
+		FROM playstore
+        GROUP BY APP
+            HAVING COUNT(*) > 1
+        ORDER BY APP_COUNT DESC;
+        
+-- 1* IDENTIFING THE DUPLICATES --
+
+WITH DUPLICATES AS
+(SELECT APP, DUPLICATE_COUNT
+, ROW_NUMBER () OVER ( PARTITION BY APP ) AS DUPLICATE_APP
+FROM playstore)
+SELECT * FROM DUPLICATES 
+WHERE DUPLICATE_APP > '1'
+ORDER BY DUPLICATE_APP DESC;
+
+-- REMOVING THE DUPLICATES --
+
+ALTER TABLE playstore
+ADD COLUMN DUPLICATE_COUNT INT AUTO_INCREMENT primary KEY;
+
+drop table playstore;
+
+DELETE FROM playstore
+WHERE DUPLICATE_COUNT IN (227,155,46,208,7,171,104,154,224,14,136,231,108,232,98,16,115,123,66,113,103,225,156,135,41,96,126,150,35,137,28,229,50);
+
+	-- ALL DUPLICATES REMOVED --
+    
+-- 2* STANDERIZING DATA --
+    
+    -- fixing name --
+    
+SELECT CATEGORY , COUNT(*) AS CATEGORY_TYPE
+	FROM playstore
+    GROUP BY CATEGORY;
+    
+SELECT * FROM playstore
+WHERE CATEGORY = 'BEAUTY';
+
+UPDATE  playstore
+SET APP = 'Invoice 2go Professional Invoices and Estimates'
+WHERE APP ='Invoice 2go â€” Professional Invoices and Estimates';
+
+UPDATE  playstore
+SET APP = 'Zona Azul Digital faicil SP CET - OFFICIAL SÃ£o Paulo'
+WHERE APP ='Zona Azul Digital FÃ¡cil SP CET - OFFICIAL SÃ£o Paulo';
+
+
+UPDATE  playstore
+SET APP = 'CarMax Cars for Sale: Search Used Car Inventory'
+WHERE APP ='CarMax â€“ Cars for Sale: Search Used Car Inventory';
+
+UPDATE  playstore
+SET APP = 'AutoScout24 Switzerland “ Find your new car'
+WHERE APP ='AutoScout24 Switzerland â€“ Find your new car';
+
+UPDATE  playstore
+SET APP = 'USPS MOBILEA®'
+WHERE APP ='USPS MOBILEÂ®';
+
+-- All NAME ARE FIXED --
+
+-- TRIM DATA --
+
+SELECT APP, TRIM(APP) FROM playstore;
+
+UPDATE PLAYSTORE
+SET APP = TRIM(APP);
+
+-- 3* CHANGING DATE FORMAT --
+
+UPDATE PLAYSTORE
+SET LAST_UPDATED = TRIM(LAST_UPDATED);
+
+ALTER TABLE playstore
+RENAME COLUMN `LAST UPDATED`TO LAST_UPDATED;
+
+ALTER TABLE playstore
+MODIFY COLUMN LAST_UPDATED DATE;
+
+UPDATE playstore
+SET LAST_UPDATED = STR_TO_DATE(LAST_UPDATED, '%M %d, %Y');
+
+-- 4* DROP UNUSED COLUMN -- 
+
+ALTER TABLE playstore
+DROP COLUMN LAST_UPDATED_DATE;
+
+ALTER TABLE playstore
+DROP COLUMN DUPLICATE_COUNT;
+
+
+-- 2. Exploratory Data Analysis (EDA) --
+
+-- 1* TYPES OF APPS --
+
+SELECT CATEGORY, COUNT(*) AS COUNT_APP
+FROM playstore
+	GROUP BY CATEGORY;
+    
+SELECT CATEGORY, GENRES , COUNT(*) FROM playstore
+GROUP BY CATEGORY, GENRES;
+
+-- 2* HIGHEST CATEGORY --
+
+WITH RANK_CATEGORY AS
+( SELECT CATEGORY, COUNT(*) AS COUNT_NUM FROM playstore
+GROUP BY CATEGORY ) SELECT 
+CASE 
+WHEN COUNT_NUM > ( SELECT AVG(COUNT_NUM) FROM RANK_CATEGORY) THEN 'HIGH'
+WHEN COUNT_NUM < ( SELECT AVG(COUNT_NUM) FROM RANK_CATEGORY) THEN 'LOW'
+ELSE 'MIDIUM'
+END AS CATEGORY_RANK, CATEGORY, COUNT_NUM
+FROM RANK_CATEGORY
+ORDER BY COUNT_NUM DESC;
+
+UPDATE playstore
+SET GENRES = 'Art & Design'
+WHERE GENRES = 'Art & Design;Creativity';
+
+-- 3*TOP 10 HIGHEST RATING APP --
+
+SELECT APP, RATING FROM playstore
+ORDER BY RATING DESC 
+LIMIT 10;
+
+WITH RATING_COUNT AS
+(SELECT 
+CASE 
+WHEN RATING > '4.3' THEN 'HIGH'
+WHEN RATING < '3.8' THEN 'LOW'
+ELSE 'MIDIUM' 
+END AS RATING_RANK, APP,RATING
+FROM playstore
+)
+SELECT RATING_RANK, COUNT(*) FROM RATING_COUNT
+GROUP BY RATING_RANK;
+
+	-- MOST RATING HAS MIDIUM --
+    
+-- 4* MOST RATED CATEGORY -- 
+
+SELECT RATING, CATEGORY FROM playstore
+ORDER BY RATING DESC
+LIMIT 10;
+
+-- AUTO_AND_VEHICLES HAS HIGHEST RATING
+
+
+-- 5* HIGHEST REVIEWS --
+
+SELECT REVIEWS, CATEGORY FROM playstore
+GROUP BY Reviews, CATEGORY
+ORDER BY REVIEWS DESC;
+
+-- 6* HIGHEST REVIEW CATEGORY --
+
+WITH GROUP_REVIEWS AS
+( SELECT CATEGORY , SUM(REVIEWS) AS TOTAL_REVIEWS
+FROM playstore
+GROUP BY CATEGORY
+ORDER BY TOTAL_REVIEWS DESC)
+SELECT * FROM GROUP_REVIEWS;
+
+
+-- BOOK AND REFERENCE HAS HIGHEST REVIEWS --
+
+-- 7* HIGHEST IN GAME SIZE --
+
+SELECT SIZE,COUNT(*) FROM playstore
+WHERE SIZE ='Varies with device';
+
+
+SELECT SIZE FROM playstore
+WHERE SIZE <> 'Varies with device'
+ORDER BY CAST(SIZE AS decimal (10,2)) DESC;
+
+-- 8* TOP DOWNLODED APP --
+
+SELECT APP, REPLACE(REPLACE(INSTALLS, '+' , ''),',','') + 0 AS INSTALLED_APP FROM playstore
+ORDER BY INSTALLED_APP DESC;
+
+-- 9* HIGHEST INSTALLED CATEGORY --
+
+
+SELECT CATEGORY,SUM(CAST(REPLACE(REPLACE(INSTALLS, '+' , ''),',','') AS UNSIGNED)) AS INSTALLED_APP FROM playstore
+GROUP BY CATEGORY
+ORDER BY INSTALLED_APP DESC;
+
+-- DATA ANALYSIS --
+
+/*===========================================
+BUSINESS QUESTIONS 
+=================================*/
+-- 1.Total apps on the Play Store. --
+
+SELECT SUM(APP) FROM playstore;                              -- 457 APPS --
+
+-- 2.Apps by category. --
+
+SELECT CATEGORY , COUNT(*) AS TOTAL_CATEGORY FROM playstore
+GROUP BY CATEGORY
+ORDER BY TOTAL_CATEGORY DESC;
+
+-- 3.Average rating by category. --
+
+SELECT CATEGORY , AVG(RATING) AS AVG_RATING FROM playstore
+GROUP BY CATEGORY
+ORDER BY AVG_RATING DESC;
+
+-- 4.Highest-rated apps. --
+
+SELECT APP , MAX(RATING) AS HIGHEST_RATING FROM PLAYSTORE
+GROUP BY APP 
+ORDER BY HIGHEST_RATING DESC
+LIMIT 10;
+
+-- 5.Most-reviewed apps. --
+
+SELECT APP , REVIEWS FROM playstore
+ORDER BY REVIEWS DESC
+LIMIT 10;
+
+-- 6.Highest-installed apps. --
+
+SELECT APP, REPLACE(REPLACE(INSTALLS, '+' , '' ),',' ,'') + 0 AS HIGHEST_INSTALLED_APP
+FROM playstore
+ORDER BY HIGHEST_INSTALLED_APP DESC
+LIMIT 1;
+
+-- 7.Free vs. paid app distribution. --
+
+SELECT `TYPE`, COUNT(*) AS TOTAL FROM playstore
+GROUP BY `TYPE`;
+
+-- NO PAID APP --
+
+SELECT COUNT(*) FROM playstore;
+
+-- 8.Average price by category. --
+
+SELECT CATEGORY, AVG(PRICE) AS AVG_PRICE FROM playstore
+GROUP BY CATEGORY;
+
+-- ALL APPS ARE FREE TO USE --
+
+-- 9.Categories with the highest installs. --
+
+SELECT CATEGORY , SUM(CAST(REPLACE(REPLACE(INSTALLS, '+' , '' ), ',' ,'') AS UNSIGNED)) AS HIGHEST_INSTALLED FROM playstore
+	GROUP BY CATEGORY 
+    ORDER BY HIGHEST_INSTALLED DESC;
+    
+    -- BOOKS AND REFFERENCE HAS HIGHEST INSTALLES --
+    
+    -- 10.Categories with the highest reviews. --
+    
+    SELECT CATEGORY , SUM(REVIEWS) AS HIGHEST_REVIEWS FROM playstore
+	GROUP BY CATEGORY 
+    ORDER BY HIGHEST_REVIEWS DESC;
+
+-- 11.Top 10 apps by installs. --
+
+SELECT APP , REPLACE(REPLACE(INSTALLS, '+', ''),',', '') + 0 AS HIGHEST_INSTALLED FROM playstore
+ORDER BY HIGHEST_INSTALLED DESC
+LIMIT 10;
+
+-- 12.Top 10 apps by rating. --
+
+SELECT APP, RATING FROM playstore
+ORDER BY RATING DESC
+LIMIT 10;
+
+-- 13.Categories with the highest-rated apps. --
+
+SELECT CATEGORY, MAX(RATING) AS MAX_RATING FROM playstore
+GROUP BY CATEGORY
+ORDER BY MAX_RATING  DESC ;
+
+-- 14. Rating vs. reviews analysis. --
+
+SELECT RATING, AVG(REVIEWS) AS AVG_REVIEWS , COUNT(*) AS ANALYSIS
+FROM playstore
+GROUP BY RATING
+ORDER BY RATING DESC;
+
+-- 15.Most common genres. --
+
+SELECT GENRES ,COUNT(*) AS MOST_COMMON FROM playstore
+GROUP BY Genres
+ORDER BY MOST_COMMON DESC
+LIMIT 1;
+
+-- Most common genres. IS BUSINESS
+
+-- 16. Recently updated apps. --
+
+SELECT APP, LAST_UPDATED FROM playstore
+ORDER BY LAST_UPDATED DESC
+LIMIT 1;
+
+-- Offline: English to Tagalog Dictionary IS THE LAST UPDATED APP 
+
+/*=============================================================
+Conclusion 
+
+FREE BOOKS_AND_REFERENCE PERFORMS THE BEST IN TERMS OF RATING, REVIEWS, INSTALLS, OR USER ENGEGMENT.
+MOST COMMON APPS ARE BUSINESS RELATED .
+
+KEY ADVICE 
+
+COMBINING BUSINESS AND BOOKS_AND_REFERENCE HAS A HIGHEST CHANCE OF PROFITS 
+
+================================================================*/ 
+
+-- IN MY ANALYSIS ( Wattpad - Free Books ) PERFORM THE BEST IN TERMS OF RATING , REVIEWS , INSTALLATIONS AND USER ENGEGMENT. --
+
+SELECT APP, RATING, REVIEWS , INSTALLS FROM playstore
+WHERE APP = 'Wattpad - Free Books';
+
